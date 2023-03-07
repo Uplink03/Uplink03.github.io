@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tools</title>
+
+    <style>
+        textarea {
+            width: 100%;
+            height: 10rem;
+        }
+    </style>
+</head>
+<body>
+    <details>
+        <summary>Fix PDF copy</summary>
+        <h2>PDF has a tendency to insert line breaks into copied paragraphs</h2>
+        <p>This is a quick tool to fix the paragraph. Just paste your text and copy it back. All end-of-line characters are replaced by spaces.</p>
+        <form>
+            <textarea id="pdf-copy"></textarea>
+        </form>
+    </details>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', (e) => {
+            document.getElementById('pdf-copy').addEventListener('input', (e) => {
+                const inputText = e.target.value;
+                e.target.value = inputText.replaceAll("\n", " ");
+            });
+        });
+    </script>
+</body>
+</html>
