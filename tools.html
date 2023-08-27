@@ -11,6 +11,9 @@
             width: 100%;
             height: 10rem;
         }
+        input[type=text] {
+            width: 100%;
+        }
     </style>
 </head>
 <body>
@@ -19,8 +22,54 @@
         <h2>PDF has a tendency to insert line breaks into copied paragraphs</h2>
         <p>This is a quick tool to fix the paragraph. Just paste your text and copy it back. All end-of-line characters are replaced by spaces.</p>
         <form>
+            <label for="pdf-copy">Text copied from PDF</label>
             <textarea id="pdf-copy"></textarea>
         </form>
+    </details>
+
+    <details>
+        <summary>Extract URL components</summary>
+        <h2>Extract components from a URL string</h2>
+        <form>
+            <label for="input-url">URL</label>
+            <input type="text" id="input-url">
+        </form>
+        <p>Result:</p>
+        <!-- TODO: easy way to generate HTML tables from associative arrays -->
+        <table>
+            <tr>
+                <th>Protocol</th>
+                <td id="url-protocol"></td>
+            </tr>
+            <tr>
+                <th>Username</th>
+                <td id="url-username"></td>
+            </tr>
+            <tr>
+                <th>Password</th>
+                <td id="url-password"></td>
+            </tr>
+            <tr>
+                <th>Host</th>
+                <td id="url-hostname"></td>
+            </tr>
+            <tr>
+                <th>Port</th>
+                <td id="url-port"></td>
+            </tr>
+            <tr>
+                <th>Path</th>
+                <td id="url-path"></td>
+            </tr>
+            <tr>
+                <th>Search</th>
+                <td><ul id="url-searchParams"></ul></td>
+            </tr>
+            <tr>
+                <th>Hash</th>
+                <td id="url-hash"></td>
+            </tr>
+        </table>
     </details>
 
     <script>
@@ -29,7 +78,70 @@
                 const inputText = e.target.value;
                 e.target.value = inputText.replaceAll("\n", " ");
             });
+
+            document.getElementById('input-url').addEventListener('input', (e) => {
+                const inputUrl = e.target.value;
+                const url = new URL(inputUrl);
+
+                const fields = [
+                    'protocol',
+                    'username',
+                    'password',
+                    'hostname',
+                    'port',
+                    'path',
+                    'searchParams',
+                    'hash',
+                ];
+
+                fields.forEach(field => {
+                    const el = document.getElementById(`url-${field}`);
+                    const urlFieldValue = url[field];
+
+                    if (typeof urlFieldValue === 'string') {
+                        el.textContent = urlFieldValue;
+                        return;
+                    }
+
+                    if (urlFieldValue instanceof URLSearchParams) {
+                        el.innerHTML = '';
+                        for (const [searchKey, searchValue] of urlFieldValue) {
+                            const listElement = document.createElement('li');
+                            listElement.appendChild(htmlDictionary(searchKey, searchValue));
+
+                            el.appendChild(listElement);
+                        }
+                        return;
+                    }
+
+                    console.log("Unhandled field: ${field}");
+                });
+            })
         });
+
+        function htmlDictionary(key, value) {
+            const tpl = document.getElementById('dictionary').content.cloneNode(true);
+            const keyElement = tpl.querySelector('.dictionary-key');
+            const valueElement = tpl.querySelector('.dictionary-value');
+
+            keyElement.textContent = key;
+            valueElement.textContent = value;
+
+            return tpl;
+        }
     </script>
+    
+    <template id="dictionary">
+        <ul>
+            <li>
+                <strong>Key:</strong>
+                <span class="dictionary-key"></span>
+            </li>
+            <li>
+                <strong>Value:</strong>
+                <span class="dictionary-value"></span>
+            </li>
+        </ul>
+    </template>
 </body>
 </html>
