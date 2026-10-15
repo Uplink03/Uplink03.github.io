@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Google Pay WebView test</title>
+<style>
+  body { font-family: sans-serif; margin: 16px; }
+  #button { margin: 16px 0; min-height: 48px; }
+  pre { background: #eee; padding: 8px; white-space: pre-wrap; word-break: break-all; font-size: 12px; }
+</style>
+</head>
+<body>
+<h3>Google Pay (pay.js) in WebView</h3>
+<label>Type
+  <select id="type"><option>buy</option><option>long</option><option selected>pay</option><option>plain</option></select>
+</label>
+<label>Env
+  <select id="env"><option>TEST</option><option>PRODUCTION</option></select>
+</label>
+<button id="render">Render</button>
+<div id="button"></div>
+<pre id="log"></pre>
+
+<script>
+  const logEl = document.getElementById('log');
+  function log(msg) {
+    logEl.textContent += msg + '\n';
+  }
+
+  log('UA: ' + navigator.userAgent);
+  log('Origin: ' + location.origin);
+  log('PaymentRequest: ' + (typeof PaymentRequest !== 'undefined'));
+
+  // ?stripeKey=pk_test_... switches to Stripe's gateway test cards (TEST env, test-card-suite group).
+  const stripeKey = new URLSearchParams(location.search).get('stripeKey');
+  log('gateway: ' + (stripeKey ? 'stripe' : 'example'));
+  const baseRequest = { apiVersion: 2, apiVersionMinor: 0 };
+  const baseCardMethod = {
+    type: 'CARD',
+    parameters: {
+      allowedAuthMethods: ['PAN_ONLY', 'CRYPTOGRAM_3DS'],
+      allowedCardNetworks: ['MASTERCARD', 'VISA']
+    }
+  };
+  const cardMethod = Object.assign({}, baseCardMethod, {
+    tokenizationSpecification: {
+      type: 'PAYMENT_GATEWAY',
+      parameters: stripeKey
+        ? { gateway: 'stripe', 'stripe:version': '2018-10-31', 'stripe:publishableKey': stripeKey }
+        : { gateway: 'example', gatewayMerchantId: 'exampleGatewayMerchantId' }
+    }
+  });
+
+  function render() {
+    const type = document.getElementById('type').value;
+    const env = document.getElementById('env').value;
+    document.getElementById('button').textContent = '';
+    log('--- render type=' + type + ' env=' + env);
+    const client = new google.payments.api.PaymentsClient({ environment: env });
+
+    // existingPaymentMethodRequired makes the button show the last used card
+    // (card art + last 4 digits) when the user has one.
+    const isReadyToPayRequest = Object.assign({}, baseRequest, {
+      allowedPaymentMethods: [baseCardMethod],
+      existingPaymentMethodRequired: true
+    });
+
+    client.isReadyToPay(isReadyToPayRequest).then(function (res) {
+      log('isReadyToPay: ' + JSON.stringify(res));
+      const button = client.createButton({
+        onClick: function () {
+          client.loadPaymentData(Object.assign({}, baseRequest, {
+            allowedPaymentMethods: [cardMethod],
+            merchantInfo: { merchantName: 'WebView test' },
+            transactionInfo: {
+              totalPriceStatus: 'FINAL',
+              totalPrice: '1.00',
+              currencyCode: 'GBP',
+              countryCode: 'GB'
+            }
+          })).then(function (data) {
+            log('loadPaymentData OK: ' + JSON.stringify(data.paymentMethodData.info));
+          }).catch(function (err) {
+            log('loadPaymentData error: ' + JSON.stringify(err));
+          });
+        },
+        allowedPaymentMethods: [baseCardMethod],
+        buttonType: type,
+        buttonSizeMode: 'fill'
+      });
+      document.getElementById('button').appendChild(button);
+      setTimeout(function () {
+        log('button HTML after 3s: ' + button.outerHTML.slice(0, 400));
+      }, 3000);
+    }).catch(function (err) {
+      log('isReadyToPay error: ' + JSON.stringify(err));
+    });
+  }
+  function onLoaded() {
+    log('pay.js loaded');
+    // Optional ?type=buy&env=PRODUCTION preselects the dropdowns (handy when driving via adb).
+    const q = new URLSearchParams(location.search);
+    if (q.get('type')) document.getElementById('type').value = q.get('type');
+    if (q.get('env')) document.getElementById('env').value = q.get('env');
+    document.getElementById('render').onclick = render;
+    render();
+  }
+  function onError() { log('failed to load pay.js'); }
+</script>
+<script async src="https://pay.google.com/gp/p/js/pay.js" onload="onLoaded()" onerror="onError()"></script>
+</body>
+</html>
